@@ -1,0 +1,49 @@
+# virtualenv
+venv/
+
+# env file
+.env
+
+# VSCode files
+.vscode/
+
+# pycache and byte code files
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# notebook-related
+.ipynb_checkpoints
+test.ipynb
+
+# Temporary data files
+zipped/
+unzipped/
+*.zip
+
+
+# Data files
+*.json
+*.csv
+
+bin/
+certifi*/
+chardet*/
+idna*/
+requests*/
+urllib3*/
+python_decouple*/
+decouple*
+
+logs/
+
+dateutil/
+numpy*/
+pandas*/
+python_*/
+pytz*/
+six*/
+six.py
+
+.DS_Store
