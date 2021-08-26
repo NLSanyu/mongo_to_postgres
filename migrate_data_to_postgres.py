@@ -5,6 +5,15 @@ import pymongo
 import logging
 import traceback
 
+from sqlalchemy import create_engine
+
+username = config("POSTGRES_USERNAME")
+password = config("POSTGRES_PASSWORD")
+host = config("POSTGRES_HOST")
+port = config("POSTGRES_PORT")
+dbname = config("POSTGRES_DB_NAME")
+engine = create_engine(f'postgresql://{username}:{password}@{host}:{port}/{dbname}')
+
 
 def remove_prefix(df, prefix):
     df.rename(
@@ -13,30 +22,10 @@ def remove_prefix(df, prefix):
     return df
 
 
-def clean_data(events):
+def prepare_data(events):
     share_events_df = pd.json_normalize(events)
 
-    # Separate data into different parts that represent tables in our data model
-    # `event properties` data
-    event_properties_df = share_events_df.loc[
-        :, share_events_df.columns.str.startswith("event_properties")
-    ]
-    event_properties_df["event_properties_insert_id"] = share_events_df[
-        "insert_id"
-    ]  # adding insert_id to events data because we will need it as a foreign key to the ShareEvents table
-
-    # Prepare columns from `event_properties`  that will later be dropped from the initial dataset
-    event_cols_to_drop = list(event_properties_df.columns)
-
-    # Rename `event_properties` columns to remove prefix
-    prefix = "event_properties_"
-    event_properties_df = remove_prefix(event_properties_df, prefix)
-
-    # Prepare to create events_properties table
-    event_properties_df.reset_index(drop=True, inplace=True)
-    event_properties_df.drop_duplicates(subset=["insert_id"], inplace=True)
-
-    # `user_properties` data
+    # Extracting `user_properties` data
     users_df = share_events_df.loc[
         :, share_events_df.columns.str.startswith("user_properties")
     ]
@@ -55,11 +44,18 @@ def clean_data(events):
     users_df.reset_index(drop=True, inplace=True)
     users_df.drop_duplicates(subset=["user_id"], inplace=True)
 
-    # Drop `user_properties` and `events_properties` from initial dataframe, now that they have been extracted
-    new_cols_to_drop = event_cols_to_drop + user_cols_to_drop
+
+    # Extracing `location` data
+    # countries_df = share_events_df.group_by("city")
+    # print(countries_df)
+
+
+    # Drop `user_properties` from initial dataframe, now that they have been extracted
+    new_cols_to_drop = user_cols_to_drop
 
     share_events_df.drop(columns=new_cols_to_drop, inplace=True, errors="ignore")
     share_events_df.drop_duplicates(subset=["insert_id"], inplace=True)
+
 
     # Add a name to event types that have no name and appear as links ("http...")
     share_events_df.loc[
@@ -75,9 +71,8 @@ def clean_data(events):
 
     users_df.to_csv("users.csv")
     share_events_df.to_csv("share_events.csv")
-    event_properties_df.to_csv("event_properties.csv")
 
-    return users_df, share_events_df, event_properties_df
+    return users_df, share_events_df
 
 
 
@@ -99,14 +94,15 @@ def read_mongo_data(collection_name):
     return events
 
 
-def sql_insert(users_df, share_events_df, event_properties_df):
-    pass
+def sql_insert(users_df, share_events_df):
+    users_df.to_sql('users', engine) # test insert to local db
+    # pass
 
 
 if __name__ == "__main__":
     prod = read_mongo_data("production")
-    users_df, share_events_df, event_properties_df = clean_data(prod)
-    sql_insert(users_df, share_events_df, event_properties_df)
+    users_df, share_events_df = prepare_data(prod)
+    # sql_insert(users_df, share_events_df)
 
     # read_mongo_data("staging")
     # read_mongo_data("beta")
