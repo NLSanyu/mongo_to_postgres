@@ -44,8 +44,10 @@ def prepare_data(events):
     users_df.reset_index(drop=True, inplace=True)
     users_df.drop_duplicates(subset=["user_id"], inplace=True)
 
+    # Extract `organization` data
+    organizations = users_df[["organization_name", "organization__id"]]
 
-    # Extracing `location` data
+    # Extract `location` data
     # countries_df = share_events_df.group_by("city")
     # print(countries_df)
 
