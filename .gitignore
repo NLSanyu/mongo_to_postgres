@@ -15,7 +15,6 @@ __pycache__/
 
 # notebook-related
 .ipynb_checkpoints
-test.ipynb
 
 # Temporary data files
 zipped/
