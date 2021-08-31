@@ -7,20 +7,20 @@ import traceback
 
 from sqlalchemy import create_engine
 
+logging.basicConfig(format="%(asctime)s - %(message)s")
+
 username = config("POSTGRES_USERNAME")
 password = config("POSTGRES_PASSWORD")
 host = config("POSTGRES_HOST")
 port = config("POSTGRES_PORT")
 dbname = config("POSTGRES_DB_NAME")
-engine = create_engine(f'postgresql://{username}:{password}@{host}:{port}/{dbname}')
-
+engine = create_engine(f"postgresql://{username}:{password}@{host}:{port}/{dbname}")
 
 def remove_prefix(df, prefix):
     df.rename(
         columns=lambda x: x[len(prefix) :] if x.startswith(prefix) else x, inplace=True
     )
     return df
-
 
 def prepare_data(events):
     share_events_df = pd.json_normalize(events)
@@ -29,9 +29,11 @@ def prepare_data(events):
     users_df = share_events_df.loc[
         :, share_events_df.columns.str.startswith("user_properties")
     ]
+
+    # Add user_id to events data because we will need it as a foreign key to the ShareEvents table
     users_df["user_properties_user_id"] = share_events_df[
         "user_id"
-    ]  # adding user_id to events data because we will need it as a foreign key to the ShareEvents table
+    ]
 
     # Prepare columns from `user_properties`  that will later be dropped from the initial dataset
     user_cols_to_drop = list(users_df.columns)
@@ -52,14 +54,14 @@ def prepare_data(events):
     organizations_df = users_df[["organization__id", "organization_name", "organization_type"]]
     organizations_df.dropna(subset=["organization__id"], inplace=True)
     organizations_df.drop_duplicates(subset=["organization__id"], inplace=True)
-    org_cols_to_drop = ["organization_name", "organization_type", "organization___v", "organization_status", 
-        "organization_logo_url_url", "organization_owner_id", "organization_updated_at", 
-        "organization_code", "organization_created_at"]
+    org_cols_to_drop = ["organization_name", "organization_type", "organization___v",
+        "organization_status", "organization_logo_url_url", "organization_owner_id",
+        "organization_updated_at", "organization_code", "organization_created_at"]
     users_df.drop(columns=org_cols_to_drop, inplace=True)
 
     # Extract `location` data
-    # countries_df = share_events_df.group_by("city")
-    # print(countries_df)
+    countries_df = share_events_df["country"]
+    countries_df.drop_duplicates(inplace=True)
 
     ### Cleaning the data
     # Add a name to event types that have no name and appear as links ("http...")
@@ -77,10 +79,14 @@ def prepare_data(events):
     share_events_df.to_csv("share_events.csv")
     users_df.to_csv("users.csv")
     organizations_df.to_csv("organizations.csv")
+    countries_df.to_csv("countries.csv")
 
-    return users_df, share_events_df
+    share_events_df.name = "share_events"
+    users_df.name = "users"
+    organizations_df = "organizations"
+    countries_df = "countries"
 
-
+    return [share_events_df, users_df, organizations_df, countries_df]
 
 def read_mongo_data(collection_name):
     user = config("MONGO_USER")
@@ -99,15 +105,21 @@ def read_mongo_data(collection_name):
 
     return events
 
+def sql_insert(df, table_name):
+    try:
+        df.to_sql(table_name, con=engine, if_exists="append")
+    except Exception as e:
+        logging.error(traceback.print_exc())
+        return {"statusCode": 500, "body": {"message": "Error inserting into Postgres"}}
 
-def sql_insert(df, table_name, engine):
-    df.to_sql(table_name, con=engine, if_exists="append") # test insert to local db
+def migrate_data(enviroment):
+    data = read_mongo_data(enviroment)
+    data_dfs = prepare_data(data)
+    for df in data_dfs:
+        sql_insert(df, df.name)
 
 
 if __name__ == "__main__":
-    prod = read_mongo_data("production")
-    users_df, share_events_df = prepare_data(prod)
-    # sql_insert()
-
-    # read_mongo_data("staging")
-    # read_mongo_data("beta")
+    migrate_data("production")
+    # migrate_data("staging")
+    # migrate_data("beta")
