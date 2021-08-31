@@ -44,21 +44,24 @@ def prepare_data(events):
     users_df.reset_index(drop=True, inplace=True)
     users_df.drop_duplicates(subset=["user_id"], inplace=True)
 
+    # Drop `user_properties` from initial dataframe, now that they have been extracted
+    share_events_df.drop(columns=user_cols_to_drop, inplace=True, errors="ignore")
+    share_events_df.drop_duplicates(subset=["insert_id"], inplace=True)
+
     # Extract `organization` data
-    organizations = users_df[["organization_name", "organization__id"]]
+    organizations_df = users_df[["organization__id", "organization_name", "organization_type"]]
+    organizations_df.dropna(subset=["organization__id"], inplace=True)
+    organizations_df.drop_duplicates(subset=["organization__id"], inplace=True)
+    org_cols_to_drop = ["organization_name", "organization_type", "organization___v", "organization_status", 
+        "organization_logo_url_url", "organization_owner_id", "organization_updated_at", 
+        "organization_code", "organization_created_at"]
+    users_df.drop(columns=org_cols_to_drop, inplace=True)
 
     # Extract `location` data
     # countries_df = share_events_df.group_by("city")
     # print(countries_df)
 
-
-    # Drop `user_properties` from initial dataframe, now that they have been extracted
-    new_cols_to_drop = user_cols_to_drop
-
-    share_events_df.drop(columns=new_cols_to_drop, inplace=True, errors="ignore")
-    share_events_df.drop_duplicates(subset=["insert_id"], inplace=True)
-
-
+    ### Cleaning the data
     # Add a name to event types that have no name and appear as links ("http...")
     share_events_df.loc[
         share_events_df["event_type"].str.startswith("http"), "event_type"
@@ -71,8 +74,9 @@ def prepare_data(events):
         inplace=True,
     )
 
-    users_df.to_csv("users.csv")
     share_events_df.to_csv("share_events.csv")
+    users_df.to_csv("users.csv")
+    organizations_df.to_csv("organizations.csv")
 
     return users_df, share_events_df
 
@@ -96,15 +100,14 @@ def read_mongo_data(collection_name):
     return events
 
 
-def sql_insert(users_df, share_events_df):
-    users_df.to_sql('users', engine) # test insert to local db
-    # pass
+def sql_insert(df, table_name, engine):
+    df.to_sql(table_name, con=engine, if_exists="append") # test insert to local db
 
 
 if __name__ == "__main__":
     prod = read_mongo_data("production")
     users_df, share_events_df = prepare_data(prod)
-    # sql_insert(users_df, share_events_df)
+    # sql_insert()
 
     # read_mongo_data("staging")
     # read_mongo_data("beta")
