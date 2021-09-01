@@ -76,6 +76,9 @@ def prepare_data(events):
         inplace=True,
     )
 
+    share_events_df.drop(columns="_id", inplace=True)
+    share_events_df.reset_index(drop=True, inplace=True)
+
     share_events_df.to_csv("share_events.csv")
     users_df.to_csv("users.csv")
     organizations_df.to_csv("organizations.csv")
@@ -83,10 +86,10 @@ def prepare_data(events):
 
     share_events_df.name = "share_events"
     users_df.name = "users"
-    organizations_df = "organizations"
-    countries_df = "countries"
+    organizations_df.name = "organizations"
+    countries_df.name = "countries"
 
-    return [share_events_df, users_df, organizations_df, countries_df]
+    return [share_events_df, organizations_df, countries_df]
 
 def read_mongo_data(collection_name):
     user = config("MONGO_USER")
