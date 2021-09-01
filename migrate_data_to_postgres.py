@@ -1,39 +1,43 @@
 import pandas as pd
 from decouple import config
+import country_converter
+import sqlalchemy
 import pymongo
 
 import logging
 import traceback
 
-from sqlalchemy import create_engine
+logging.basicConfig(filename='app.log', 
+    format='%(asctime)s - %(message)s',
+    level=logging.INFO
+)
 
-logging.basicConfig(format="%(asctime)s - %(message)s")
+primary_keys = {
+    "share_events": "insert_id",
+    # "users": "user_id",
+    "organizations": "organization__id",
+    "countries": "country_code"
+}
 
 username = config("POSTGRES_USERNAME")
 password = config("POSTGRES_PASSWORD")
 host = config("POSTGRES_HOST")
 port = config("POSTGRES_PORT")
 dbname = config("POSTGRES_DB_NAME")
-engine = create_engine(f"postgresql://{username}:{password}@{host}:{port}/{dbname}")
+engine = sqlalchemy.create_engine(f"postgresql://{username}:{password}@{host}:{port}/{dbname}")
 
 def remove_prefix(df, prefix):
-    df.rename(
-        columns=lambda x: x[len(prefix) :] if x.startswith(prefix) else x, inplace=True
-    )
+    df.rename(columns=lambda x: x[len(prefix) :] if x.startswith(prefix) else x, inplace=True)
     return df
 
 def prepare_data(events):
     share_events_df = pd.json_normalize(events)
 
     # Extracting `user_properties` data
-    users_df = share_events_df.loc[
-        :, share_events_df.columns.str.startswith("user_properties")
-    ]
+    users_df = share_events_df.loc[:, share_events_df.columns.str.startswith("user_properties")]
 
     # Add user_id to events data because we will need it as a foreign key to the ShareEvents table
-    users_df["user_properties_user_id"] = share_events_df[
-        "user_id"
-    ]
+    users_df["user_properties_user_id"] = share_events_df["user_id"]
 
     # Prepare columns from `user_properties`  that will later be dropped from the initial dataset
     user_cols_to_drop = list(users_df.columns)
@@ -42,8 +46,7 @@ def prepare_data(events):
     prefix = "user_properties_"
     users_df = remove_prefix(users_df, prefix)
 
-    # Prepare to create user table
-    users_df.reset_index(drop=True, inplace=True)
+    # Prepare to create user table - remove duplicate user ids
     users_df.drop_duplicates(subset=["user_id"], inplace=True)
 
     # Drop `user_properties` from initial dataframe, now that they have been extracted
@@ -60,10 +63,12 @@ def prepare_data(events):
     users_df.drop(columns=org_cols_to_drop, inplace=True)
 
     # Extract `location` data
-    countries_df = share_events_df["country"]
-    countries_df.drop_duplicates(inplace=True)
+    share_events_df["country_code"] = country_converter.convert(names=list(share_events_df["country"]), to="ISO3")
+    countries_df = share_events_df[["country", "country_code"]]
+    share_events_df.drop(columns="country", inplace=True)
+    countries_df.drop_duplicates(subset=["country_code"], inplace=True)
 
-    ### Cleaning the data
+    ### Cleaning up inconsistent share_events data
     # Add a name to event types that have no name and appear as links ("http...")
     share_events_df.loc[
         share_events_df["event_type"].str.startswith("http"), "event_type"
@@ -76,19 +81,20 @@ def prepare_data(events):
         inplace=True,
     )
 
+    # Final cleanup of dataframes
     share_events_df.drop(columns="_id", inplace=True)
     share_events_df.reset_index(drop=True, inplace=True)
+    users_df.reset_index(drop=True, inplace=True)
+    organizations_df.reset_index(drop=True, inplace=True)
+    countries_df.reset_index(drop=True, inplace=True)
 
-    share_events_df.to_csv("share_events.csv")
-    users_df.to_csv("users.csv")
-    organizations_df.to_csv("organizations.csv")
-    countries_df.to_csv("countries.csv")
-
+    # Add dataframe names that will be used as table names in the database
     share_events_df.name = "share_events"
     users_df.name = "users"
     organizations_df.name = "organizations"
     countries_df.name = "countries"
 
+    # return [share_events_df, users_df, organizations_df, countries_df]
     return [share_events_df, organizations_df, countries_df]
 
 def read_mongo_data(collection_name):
@@ -101,7 +107,6 @@ def read_mongo_data(collection_name):
         logging.info("Connected to Mongo")
         collection = db[collection_name]
         events = list(collection.find())
-
     except Exception as e:
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error connecting to MongoDB"}}
@@ -111,15 +116,22 @@ def read_mongo_data(collection_name):
 def sql_insert(df, table_name):
     try:
         df.to_sql(table_name, con=engine, if_exists="append")
+    except sqlalchemy.exc.IntegrityError:
+        logging.info(f"Duplicate key on {table_name} table")
     except Exception as e:
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error inserting into Postgres"}}
+
+def add_primary_key(table_name, primary_key):
+    engine.execute(f"ALTER TABLE {table_name} DROP CONSTRAINT {table_name}_pkey")
+    engine.execute(f"ALTER TABLE {table_name} ADD PRIMARY KEY ({primary_key})")
 
 def migrate_data(enviroment):
     data = read_mongo_data(enviroment)
     data_dfs = prepare_data(data)
     for df in data_dfs:
         sql_insert(df, df.name)
+        add_primary_key(df.name, primary_keys[df.name])
 
 
 if __name__ == "__main__":
