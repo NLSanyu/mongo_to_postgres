@@ -12,6 +12,9 @@ logging.basicConfig(filename='app.log',
     level=logging.INFO
 )
 
+# Disable 'setting with copy' warning
+pd.options.mode.chained_assignment = None
+
 primary_keys = {
     "share_events": "insert_id",
     # "users": "user_id",
@@ -95,7 +98,7 @@ def prepare_data(events):
     countries_df.name = "countries"
 
     # return [share_events_df, users_df, organizations_df, countries_df]
-    return [share_events_df, organizations_df, countries_df]
+    return [users_df]
 
 def read_mongo_data(collection_name):
     user = config("MONGO_USER")
@@ -120,7 +123,7 @@ def sql_insert(df, table_name):
         logging.info(f"Duplicate key on {table_name} table")
     except Exception as e:
         logging.error(traceback.print_exc())
-        return {"statusCode": 500, "body": {"message": "Error inserting into Postgres"}}
+        return {"statusCode": 500, "body": {"message": "Error inserting into Postgres DB"}}
 
 def add_primary_key(table_name, primary_key):
     engine.execute(f"ALTER TABLE {table_name} DROP CONSTRAINT {table_name}_pkey")
@@ -131,7 +134,7 @@ def migrate_data(enviroment):
     data_dfs = prepare_data(data)
     for df in data_dfs:
         sql_insert(df, df.name)
-        add_primary_key(df.name, primary_keys[df.name])
+        # add_primary_key(df.name, primary_keys[df.name])
 
 
 if __name__ == "__main__":

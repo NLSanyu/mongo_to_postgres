@@ -35,7 +35,9 @@ urllib3*/
 python_decouple*/
 decouple*
 
+# logs
 logs/
+app.log
 
 dateutil/
 numpy*/
