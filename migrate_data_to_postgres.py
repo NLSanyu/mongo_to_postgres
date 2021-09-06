@@ -134,7 +134,7 @@ def migrate_data(enviroment):
     data_dfs = prepare_data(data)
     for df in data_dfs:
         sql_insert(df, df.name)
-        # add_primary_key(df.name, primary_keys[df.name])
+        add_primary_key(df.name, primary_keys[df.name])
 
 
 if __name__ == "__main__":
