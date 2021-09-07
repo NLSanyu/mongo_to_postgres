@@ -17,7 +17,7 @@ pd.options.mode.chained_assignment = None
 
 primary_keys = {
     "share_events": "insert_id",
-    # "users": "user_id",
+    "users": "user_id",
     "organizations": "organization__id",
     "countries": "country_code"
 }
@@ -54,6 +54,7 @@ def prepare_data(events):
 
     # Drop `user_properties` from initial dataframe, now that they have been extracted
     share_events_df.drop(columns=user_cols_to_drop, inplace=True, errors="ignore")
+    share_events_df.drop(columns="_id", inplace=True)
     share_events_df.drop_duplicates(subset=["insert_id"], inplace=True)
 
     # Extract `organization` data
@@ -84,21 +85,12 @@ def prepare_data(events):
         inplace=True,
     )
 
-    # Final cleanup of dataframes
-    share_events_df.drop(columns="_id", inplace=True)
-    share_events_df.reset_index(drop=True, inplace=True)
-    users_df.reset_index(drop=True, inplace=True)
-    organizations_df.reset_index(drop=True, inplace=True)
-    countries_df.reset_index(drop=True, inplace=True)
-
-    # Add dataframe names that will be used as table names in the database
-    share_events_df.name = "share_events"
-    users_df.name = "users"
-    organizations_df.name = "organizations"
-    countries_df.name = "countries"
-
-    # return [share_events_df, users_df, organizations_df, countries_df]
-    return [users_df]
+    return [
+        {"share_events": share_events_df}, 
+        {"users": users_df},
+        {"organizations": organizations_df},
+        {"countries": countries_df}
+    ]
 
 def read_mongo_data(collection_name):
     user = config("MONGO_USER")
@@ -118,7 +110,7 @@ def read_mongo_data(collection_name):
 
 def sql_insert(df, table_name):
     try:
-        df.to_sql(table_name, con=engine, if_exists="append")
+        df.to_sql(table_name, con=engine, if_exists="append", index=False)
     except sqlalchemy.exc.IntegrityError:
         logging.info(f"Duplicate key on {table_name} table")
     except Exception as e:
@@ -131,10 +123,11 @@ def add_primary_key(table_name, primary_key):
 
 def migrate_data(enviroment):
     data = read_mongo_data(enviroment)
-    data_dfs = prepare_data(data)
-    for df in data_dfs:
-        sql_insert(df, df.name)
-        add_primary_key(df.name, primary_keys[df.name])
+    data_dicts = prepare_data(data)
+    for data in data_dicts:
+        data_key = list(data.keys())[0]
+        sql_insert(data[data_key], data_key)
+        # add_primary_key(data_key, primary_keys[data_key])
 
 
 if __name__ == "__main__":
