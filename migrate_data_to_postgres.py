@@ -121,6 +121,11 @@ def add_primary_key(table_name, primary_key):
     engine.execute(f"ALTER TABLE {table_name} DROP CONSTRAINT {table_name}_pkey")
     engine.execute(f"ALTER TABLE {table_name} ADD PRIMARY KEY ({primary_key})")
 
+def add_foreign_keys():
+    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (user_id) REFERENCES users(user_id);")
+    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (country_code) REFERENCES countries(country_code);")
+    engine.execute(f"ALTER TABLE users ADD FOREIGN KEY (organization__id) REFERENCES organizations(organization__id);")
+
 def migrate_data(enviroment):
     data = read_mongo_data(enviroment)
     data_dicts = prepare_data(data)
