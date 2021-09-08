@@ -128,20 +128,17 @@ def add_foreign_keys():
     engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (country_code) REFERENCES countries(country_code);")
     engine.execute(f"ALTER TABLE users ADD FOREIGN KEY (organization__id) REFERENCES organizations(organization__id);")
 
-def migrate_data():
+def migrate_data(environment):
+    data = read_mongo_data(environment)
+    data_dicts = prepare_data(data)
+    for data in data_dicts:
+        data_key = list(data.keys())[0]
+        sql_insert(data[data_key], data_key)
     add_primary_keys()
     add_foreign_keys()
-    # data = read_mongo_data(enviroment)
-    # data_dicts = prepare_data(data)
-    # for data in data_dicts:
-    #     data_key = list(data.keys())[0]
-    #     sql_insert(data[data_key], data_key)
-    #     # add_primary_keys()
-          # add_foreign_keys()
 
 
 if __name__ == "__main__":
-    migrate_data()
-    # migrate_data("production")
+    migrate_data("production")
     # migrate_data("staging")
     # migrate_data("beta")
