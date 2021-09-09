@@ -117,28 +117,28 @@ def sql_insert(df, table_name):
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error inserting into Postgres DB"}}
 
-def add_primary_keys():
-    engine.execute(f"ALTER TABLE users ADD PRIMARY KEY (user_id);")
-    engine.execute(f"ALTER TABLE organizations ADD PRIMARY KEY (organization__id);")
-    engine.execute(f"ALTER TABLE countries ADD PRIMARY KEY (country_code);")
-    engine.execute(f"ALTER TABLE share_events ADD PRIMARY KEY (insert_id);")
+def add_primary_keys(environment):
+    engine.execute(f"ALTER TABLE {environment}_users ADD PRIMARY KEY (user_id);")
+    engine.execute(f"ALTER TABLE {environment}_organizations ADD PRIMARY KEY (organization__id);")
+    engine.execute(f"ALTER TABLE {environment}_countries ADD PRIMARY KEY (country_code);")
+    engine.execute(f"ALTER TABLE {environment}_share_events ADD PRIMARY KEY (insert_id);")
 
-def add_foreign_keys():
-    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (user_id) REFERENCES users(user_id);")
-    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (country_code) REFERENCES countries(country_code);")
-    engine.execute(f"ALTER TABLE users ADD FOREIGN KEY (organization__id) REFERENCES organizations(organization__id);")
+def add_foreign_keys(environment):
+    engine.execute(f"ALTER TABLE {environment}_share_events ADD FOREIGN KEY (user_id) REFERENCES {environment}_users(user_id);")
+    engine.execute(f"ALTER TABLE {environment}_share_events ADD FOREIGN KEY (country_code) REFERENCES {environment}_countries(country_code);")
+    engine.execute(f"ALTER TABLE {environment}_users ADD FOREIGN KEY (organization__id) REFERENCES {environment}_organizations(organization__id);")
 
 def migrate_data(environment):
     data = read_mongo_data(environment)
     data_dicts = prepare_data(data)
     for data in data_dicts:
         data_key = list(data.keys())[0]
-        sql_insert(data[data_key], data_key)
-    add_primary_keys()
-    add_foreign_keys()
+        sql_insert(data[data_key], f"{environment}_{data_key}")
+    add_primary_keys(environment)
+    add_foreign_keys(environment)
 
 
 if __name__ == "__main__":
     migrate_data("production")
-    # migrate_data("staging")
-    # migrate_data("beta")
+    migrate_data("staging")
+    migrate_data("beta")
