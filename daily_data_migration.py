@@ -124,10 +124,9 @@ def migrate_data(environment):
     data_dicts = prepare_data(data)
     for data in data_dicts:
         data_key = list(data.keys())[0]
-        sql_insert(data[data_key], f"{environment}_{data_key}")
+        sql_insert(data[data_key], data_key)
 
 
 if __name__ == "__main__":
     migrate_data("production")
-    # migrate_data("staging")
-    # migrate_data("beta")
+
