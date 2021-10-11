@@ -15,7 +15,7 @@ The data migration is divided into two scripts:
 * The data is then inserted into the PostgreSQL database in the four above mentioned tables. In the case of the `first_time_data_migration` script, the data inserted then primary and foreign keys are added. In the other case, the data is simply inserted
 
 ### Improvements:
-* Modularize the scripts (extract common methods between the two scripts and call them from a separate file) - `in progress`
+* Refactoring: modularize the scripts by extracting common methods into a separate file) - `in progress`
 * Possibly implement using command line arguments to choose which of the two scripts to run
 * Possibly improve the logic for fetching data for the current day (for now it's "date greater than yesterday")
 
