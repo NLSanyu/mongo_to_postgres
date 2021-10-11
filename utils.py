@@ -6,12 +6,21 @@ import pymongo
 
 import logging
 import traceback
-from datetime import datetime
 
 logging.basicConfig(filename='app.log', 
     format='%(asctime)s - %(message)s',
     level=logging.INFO
 )
+
+# Disable 'setting with copy' warning
+pd.options.mode.chained_assignment = None
+
+primary_keys = {
+    "share_events": "insert_id",
+    "users": "user_id",
+    "organizations": "organization__id",
+    "countries": "country_code"
+}
 
 username = config("POSTGRES_USERNAME")
 password = config("POSTGRES_PASSWORD")
@@ -92,8 +101,7 @@ def read_mongo_data(collection_name):
         db = client["masterwizr-data-db"]
         logging.info("Connected to Mongo")
         collection = db[collection_name]
-        yesterday = (datetime.timestamp(datetime.now()) * 1000) - 86400000
-        events = collection.find({"event_time": {"$gt": yesterday}})
+        events = list(collection.find())
     except Exception as e:
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error connecting to MongoDB"}}
@@ -108,15 +116,3 @@ def sql_insert(df, table_name):
     except Exception as e:
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error inserting into Postgres DB"}}
-
-def migrate_data(environment):
-    data = read_mongo_data(environment)
-    data_dicts = prepare_data(data)
-    for data in data_dicts:
-        data_key = list(data.keys())[0]
-        sql_insert(data[data_key], data_key)
-
-
-if __name__ == "__main__":
-    migrate_data("production")
-
