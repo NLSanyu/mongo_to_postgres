@@ -118,15 +118,15 @@ def sql_insert(df, table_name):
         return {"statusCode": 500, "body": {"message": "Error inserting into Postgres DB"}}
 
 def add_primary_keys():
-    engine.execute("ALTER TABLE users ADD PRIMARY KEY (user_id);")
-    engine.execute("ALTER TABLE organizations ADD PRIMARY KEY (organization__id);")
-    engine.execute("ALTER TABLE countries ADD PRIMARY KEY (country_code);")
-    engine.execute("ALTER TABLE share_events ADD PRIMARY KEY (insert_id);")
+    engine.execute(f"ALTER TABLE users ADD PRIMARY KEY ({primary_keys['users']});")
+    engine.execute(f"ALTER TABLE organizations ADD PRIMARY KEY ({primary_keys['organizations']});")
+    engine.execute(f"ALTER TABLE countries ADD PRIMARY KEY ({primary_keys['countries']});")
+    engine.execute(f"ALTER TABLE share_events ADD PRIMARY KEY ({primary_keys['share_events']});")
 
 def add_foreign_keys():
-    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (user_id) REFERENCES users(user_id);")
-    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY (country_code) REFERENCES countries(country_code);")
-    engine.execute(f"ALTER TABLE users ADD FOREIGN KEY (organization__id) REFERENCES organizations(organization__id);")
+    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY ({primary_keys['users']}) REFERENCES users({primary_keys['users']});")
+    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY ({primary_keys['countries']}) REFERENCES countries({primary_keys['countries']});")
+    engine.execute(f"ALTER TABLE users ADD FOREIGN KEY ({primary_keys['organizations']}) REFERENCES organizations({primary_keys['organizations']});")
 
 def migrate_data(environment):
     data = read_mongo_data(environment)
