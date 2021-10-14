@@ -7,8 +7,8 @@ import pymongo
 import logging
 import traceback
 
-logging.basicConfig(filename='app.log', 
-    format='%(asctime)s - %(message)s',
+logging.basicConfig(filename="app.log", 
+    format="%(asctime)s - %(message)s",
     level=logging.INFO
 )
 
