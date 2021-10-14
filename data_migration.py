@@ -4,8 +4,7 @@ import country_converter
 import sqlalchemy
 import pymongo
 
-import sys
-import getopt
+import argparse
 import logging
 import traceback
 from datetime import datetime
@@ -20,24 +19,11 @@ logging.basicConfig(filename="app.log",
 )
 
 # Process command line arguments
-argument_list = sys.argv[1:]
-options = "fd"
-long_options = ["first_time", "daily"]
-
-FIRST_TIME_DATA_MIGRATION = ("-f", "--first_time")
-DAILY_DATA_MIGRATION = ("-d", "--daily")
-script_to_run = "first"
- 
-try:
-    arguments, values = getopt.getopt(argument_list, options, long_options)
-
-    for passed_argument, passed_value in arguments:
-        if passed_argument in FIRST_TIME_DATA_MIGRATION:
-            script_to_run = "first"
-        elif passed_argument in DAILY_DATA_MIGRATION:
-            script_to_run = "daily"
-except getopt.error as err:
-    logging.error(str(err))
+parser = argparse.ArgumentParser()
+group = parser.add_mutually_exclusive_group()
+group.add_argument("--first", action="store_true", help="First time data migration")
+group.add_argument("--daily", action="store_true", help="Daily data migration")
+args = parser.parse_args()
 
 # Define dict for primary keys
 primary_keys = {
@@ -127,9 +113,9 @@ def read_mongo_data(collection_name):
         db = client["masterwizr-data-db"]
         logging.info("Connected to Mongo")
         collection = db[collection_name]
-        if script_to_run == "first":
+        if args.first:
             events = collection.find()
-        elif script_to_run == "daily":
+        elif args.daily:
             yesterday = (datetime.timestamp(datetime.now()) * 1000) - 86400000
             events = collection.find({"event_time": {"$gt": yesterday}})
     except Exception as e:
@@ -164,7 +150,7 @@ def migrate_data(environment):
     for data in data_dicts:
         data_key = list(data.keys())[0]
         sql_insert(data[data_key], data_key)
-    if script_to_run == "first":
+    if args.first:
         add_primary_keys()
         add_foreign_keys()
 
