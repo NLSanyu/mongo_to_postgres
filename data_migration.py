@@ -4,6 +4,8 @@ import country_converter
 import sqlalchemy
 import pymongo
 
+import sys
+import getopt
 import logging
 import traceback
 from datetime import datetime
@@ -11,11 +13,41 @@ from datetime import datetime
 # Disable 'setting with copy' warning
 pd.options.mode.chained_assignment = None
 
+# Configure logging
 logging.basicConfig(filename="app.log", 
     format="%(asctime)s - %(message)s",
     level=logging.INFO
 )
 
+# Process command line arguments
+argument_list = sys.argv[1:]
+options = "fd"
+long_options = ["first_time", "daily"]
+
+FIRST_TIME_DATA_MIGRATION = ("-f", "--first_time")
+DAILY_DATA_MIGRATION = ("-d", "--daily")
+script_to_run = "first"
+ 
+try:
+    arguments, values = getopt.getopt(argument_list, options, long_options)
+
+    for passed_argument, passed_value in arguments:
+        if passed_argument in FIRST_TIME_DATA_MIGRATION:
+            script_to_run = "first"
+        elif passed_argument in DAILY_DATA_MIGRATION:
+            script_to_run = "daily"
+except getopt.error as err:
+    logging.error(str(err))
+
+# Define dict for primary keys
+primary_keys = {
+    "share_events": "insert_id",
+    "users": "user_id",
+    "organizations": "organization__id",
+    "countries": "country_code"
+}
+
+# Define params for Postgres connection
 username = config("POSTGRES_USERNAME")
 password = config("POSTGRES_PASSWORD")
 host = config("POSTGRES_HOST")
@@ -95,8 +127,11 @@ def read_mongo_data(collection_name):
         db = client["masterwizr-data-db"]
         logging.info("Connected to Mongo")
         collection = db[collection_name]
-        yesterday = (datetime.timestamp(datetime.now()) * 1000) - 86400000
-        events = collection.find({"event_time": {"$gt": yesterday}})
+        if script_to_run == "first":
+            events = collection.find()
+        elif script_to_run == "daily":
+            yesterday = (datetime.timestamp(datetime.now()) * 1000) - 86400000
+            events = collection.find({"event_time": {"$gt": yesterday}})
     except Exception as e:
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error connecting to MongoDB"}}
@@ -112,14 +147,27 @@ def sql_insert(df, table_name):
         logging.error(traceback.print_exc())
         return {"statusCode": 500, "body": {"message": "Error inserting into Postgres DB"}}
 
+def add_primary_keys():
+    engine.execute(f"ALTER TABLE users ADD PRIMARY KEY ({primary_keys['users']});")
+    engine.execute(f"ALTER TABLE organizations ADD PRIMARY KEY ({primary_keys['organizations']});")
+    engine.execute(f"ALTER TABLE countries ADD PRIMARY KEY ({primary_keys['countries']});")
+    engine.execute(f"ALTER TABLE share_events ADD PRIMARY KEY ({primary_keys['share_events']});")
+
+def add_foreign_keys():
+    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY ({primary_keys['users']}) REFERENCES users({primary_keys['users']});")
+    engine.execute(f"ALTER TABLE share_events ADD FOREIGN KEY ({primary_keys['countries']}) REFERENCES countries({primary_keys['countries']});")
+    engine.execute(f"ALTER TABLE users ADD FOREIGN KEY ({primary_keys['organizations']}) REFERENCES organizations({primary_keys['organizations']});")
+
 def migrate_data(environment):
     data = read_mongo_data(environment)
     data_dicts = prepare_data(data)
     for data in data_dicts:
         data_key = list(data.keys())[0]
         sql_insert(data[data_key], data_key)
+    if script_to_run == "first":
+        add_primary_keys()
+        add_foreign_keys()
 
 
 if __name__ == "__main__":
     migrate_data("production")
-
