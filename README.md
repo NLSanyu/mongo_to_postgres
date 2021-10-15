@@ -5,7 +5,7 @@ Python scripts for migrating user events data from `MongoDB` to `PostgreSQL`
 ### Data migration overview:
 
 There are two ways the data migration can be done:
-* `First time data migration` - for the first time creation, set up and insertion of data into the PostgreSQL database
+* `First time data migration` - for the first time set up and insertion of data into the PostgreSQL database
 * `Daily data migration` - for recurring (daily) data migration into a PostgreSQL database that has already been set up using the above method
 
 ### Process of data migration:
@@ -30,4 +30,4 @@ There are two ways the data migration can be done:
 * Possibly improve the logic for fetching data for the current day (for now it's "date greater than yesterday") - `TO DO`
 
 ### To do:
-* Deploy this script (as part of an `Airflow` instance or an `AWS Lambda` function). This requires a deployed `Airflow` instance and a cloud hosted `PostgreSQL` database
+* Deploy this script (as part of an `Airflow` instance or an `AWS Lambda` function)
