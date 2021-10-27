@@ -1,6 +1,6 @@
 # MongoDB to PostgreSQL data migration
 
-Python scripts for migrating user events data from `MongoDB` to `PostgreSQL`
+Python scripts for migrating user events data from `MongoDB` to `PostgreSQL`. This is done to facilitate fetching these events from our custom analytics API.
 
 ### Data migration overview:
 
@@ -15,7 +15,7 @@ There are two ways the data migration can be done:
 * The data is then inserted into the PostgreSQL database in the four above mentioned tables. In the case of `first time data migration`, the data is inserted and then the primary and foreign keys are added. In the case of `daily data migration`, the data is simply inserted into the tables
 
 ## How to set up this project locally
-* Clone this repository: `git clone https://github.com/NLSanyu/mongo_to_postgres.git`
+* Clone this repository: `git clone https://github.com/Master-Wizr/masterwizr-mongo-to-postgres-lambda`
 * Change directory into the root folder of this project: `cd mongo_to_postgres`
 * Create and activate a virtual environment: `python3 -m virtualenv my_venv`, then `source my_venv/bin/activate`
 * Install the required dependencies from the requirements file: `pip freeze > requirements.txt`
@@ -30,4 +30,4 @@ There are two ways the data migration can be done:
 * Possibly improve the logic for fetching data for the current day (for now it's "date greater than yesterday") - `TO DO`
 
 ### To do:
-* Deploy this script (as part of an `Airflow` instance or an `AWS Lambda` function)
+* Deploy this script (as part of an `AWS Lambda` function or an `Apache Airflow` instance)
