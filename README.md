@@ -1,6 +1,6 @@
 # MongoDB to PostgreSQL data migration
 
-Python scripts for migrating user events data from `MongoDB` to `PostgreSQL`. This is done to facilitate fetching these events from our custom analytics API.
+This repository contains Python scripts for migrating user events data from `MongoDB` to `PostgreSQL`. This is done to facilitate fetching these events in our custom analytics API.
 
 ### Data migration overview:
 
@@ -16,18 +16,19 @@ There are two ways the data migration can be done:
 
 ## How to set up this project locally
 * Clone this repository: `git clone https://github.com/Master-Wizr/masterwizr-mongo-to-postgres-lambda`
-* Change directory into the root folder of this project: `cd mongo_to_postgres`
+* Change directory into the root folder of this project: `cd masterwizr-mongo-to-postgres-lambda`
+* Create a `.env` file and fill in your enviromnment variables as shown in the `.env.example` file included in this repository
 * Create and activate a virtual environment: `python3 -m virtualenv my_venv`, then `source my_venv/bin/activate`
 * Install the required dependencies from the requirements file: `pip freeze > requirements.txt`
-* Create a PostgreSQL database called `mw_data` on your local machine (using `psql` or any other database tool)
+* Create a PostgreSQL database on your local machine that has the same name as your `POSTGRES_DB_NAME` environment variable in your `.env` file. You can create this database using `psql` or any other Postgres database tool
 * Run the first time data migration script: `python data_migration.py --first`
 * Run the daily data migration script when needed `python data_migration.py --daily` (this script should ideally be run using a job/workflow scheduler)
-* Check the `mw_data` PostgreSQL database for the updated data
+* Check the PostgreSQL database for the updated data
 
 ### Improvements:
 * Modularize the scripts (extract common methods between the two scripts and call them from a separate file) - `DONE`
-* Implement using command line arguments to choose data migration logic to run - `DONE`
+* Implement using command line arguments to choose which data migration logic to run - `DONE`
 * Possibly improve the logic for fetching data for the current day (for now it's "date greater than yesterday") - `TO DO`
 
 ### To do:
-* Deploy this script (as part of an `AWS Lambda` function or an `Apache Airflow` instance)
+* Deploy this script as part of an `AWS Lambda` function (or later an `Apache Airflow` instance)
