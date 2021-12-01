@@ -61,8 +61,9 @@ def prepare_data(events):
     prefix = "user_properties_"
     users_df = remove_prefix(users_df, prefix)
 
-    # Prepare to create user table - remove duplicate user ids
+    # Prepare to create user table - remove duplicate user ids and null ids
     users_df.drop_duplicates(subset=["user_id"], inplace=True)
+    users_df.dropna(subset=["user_id"], inplace=True)
 
     # Drop `user_properties` from initial dataframe, now that they have been extracted
     share_events_df.drop(columns=user_cols_to_drop, inplace=True, errors="ignore")
